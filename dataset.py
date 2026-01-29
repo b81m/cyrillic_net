@@ -17,20 +17,28 @@ def white_bg_loader(path):
             
             return background.convert('RGB')
         
-def get_dataloaders(path_to_data="Cyrillic"):
+def get_dataloaders(image_size=28,num_channels=1,path_to_data="Cyrillic"):
 
     transform = transforms.Compose([
-        transforms.Grayscale(num_output_channels=1),
-        transforms.Resize((28,28)),
+        transforms.Grayscale(num_output_channels=num_channels),
+        transforms.Resize((image_size,image_size)),
         transforms.RandomAffine(
-            degrees=15,
+            degrees=12,
             translate=(0.1,0.1), #offset from center by x,y coordinates
-            scale=(0.85,1.15), #zoom image from 85% to 115%
-                fill = 255
+            scale=(0.9,1.1), #zoom image from 85% to 115%
+            shear=10,
+            fill = 255
         ),
+        transforms.RandomApply([
+            transforms.ElasticTransform(alpha=50.0,sigma=5.0,fill=50)
+        ],p=0.1),
         transforms.ToTensor(),
         transforms.Lambda(invert_colors),
-        transforms.Normalize((0.1307,), (0.3081,))
+
+        transforms.RandomErasing(p=0.5,scale=(0.02,0.1),value=0),
+
+        # transforms.Normalize((0.1307,), (0.3081,))
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     dataset=datasets.ImageFolder(root=path_to_data,
@@ -42,10 +50,17 @@ def get_dataloaders(path_to_data="Cyrillic"):
     train_dataset,test_dataset = random_split(dataset,[train_size,test_size])
 
     train_loader = DataLoader(train_dataset,
-                              batch_size=128,
-                              shuffle=True)
+                              batch_size=256,
+                              shuffle=True,
+                              num_workers=2,
+                              pin_memory=True)
     test_loader = DataLoader(test_dataset,
-                             batch_size=64,
-                             shuffle=False)
+                             batch_size=128,
+                             shuffle=False,
+                            num_workers=2,
+                              pin_memory=True)  
 
     return train_loader,test_loader,dataset.classes
+
+train_loader,test_loader,dataset = get_dataloaders()
+
